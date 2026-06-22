@@ -43,24 +43,25 @@ class handler(BaseHTTPRequestHandler):
             font_req = requests.get(font_url)
             font_bytes = BytesIO(font_req.content)
             
-            font_large = ImageFont.truetype(font_bytes, int(W * 0.065)) # Big text for Amount
+            # INCREASED SIZES HERE:
+            font_large = ImageFont.truetype(font_bytes, int(W * 0.095)) # Increased from 0.065 to 0.095 (Huge Amount Text)
             
             font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, int(W * 0.032)) # Normal text
+            font_small = ImageFont.truetype(font_bytes, int(W * 0.040)) # Increased from 0.032 to 0.040 (Normal Details Text)
             
             font_bytes.seek(0)
-            font_top = ImageFont.truetype(font_bytes, int(W * 0.038)) # Phone Clock text
+            font_top = ImageFont.truetype(font_bytes, int(W * 0.040))   # Increased Phone Clock text
         except Exception:
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
             font_top = ImageFont.load_default()
 
         # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES (Erases old dots, dashes, and phone time)
-        draw.rectangle([W * 0.20, H * 0.31, W * 0.80, H * 0.38], fill="#FFFFFF") # Main Amount Area
-        draw.rectangle([W * 0.05, H * 0.015, W * 0.16, H * 0.035], fill="#FFFFFF") # Top-Left Phone Clock Area
+        draw.rectangle([W * 0.15, H * 0.30, W * 0.85, H * 0.39], fill="#FFFFFF") # Main Amount Area (Made slightly wider)
+        draw.rectangle([W * 0.04, H * 0.015, W * 0.18, H * 0.038], fill="#FFFFFF") # Top-Left Phone Clock Area
 
         # 1. Draw Top-Left Phone Clock (e.g. 22:54)
-        draw.text((W * 0.06, H * 0.015), time_str_short, fill="#000000", font=font_top)
+        draw.text((W * 0.05, H * 0.015), time_str_short, fill="#000000", font=font_top)
 
         # 2. Draw Full Amount perfectly centered together: e.g. "-60.00 (ብር)"
         amount_text = f"-{amount} (ብር)"
@@ -72,18 +73,4 @@ class handler(BaseHTTPRequestHandler):
         # 4. Draw Account Name (Right-aligned)
         draw.text((W * 0.90, H * 0.525), name, fill="#000000", font=font_small, anchor="rm")
 
-        # 5. Draw Transaction ID (Right-aligned)
-        draw.text((W * 0.90, H * 0.565), txid, fill="#000000", font=font_small, anchor="rm")
-
-        # Export image back to bytes
-        img_byte_arr = BytesIO()
-        img.save(img_byte_arr, format='JPEG', quality=95)
-        img_byte_arr = img_byte_arr.getvalue()
-
-        # Send Image Response
-        self.send_response(200)
-        self.send_header('Content-Type', 'image/jpeg')
-        self.send_header('Content-Length', str(len(img_byte_arr)))
-        self.end_headers()
-        self.wfile.write(img_byte_arr)
-        return
+        # 5. Draw Transaction ID (Rig
