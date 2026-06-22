@@ -23,7 +23,8 @@ class handler(BaseHTTPRequestHandler):
         # Calculate exact Ethiopian Time (UTC+3)
         utc_now = datetime.now(timezone.utc)
         eth_now = utc_now + timedelta(hours=3)
-        time_str = eth_now.strftime("%Y/%m/%d %H:%M:%S")
+        time_str_full = eth_now.strftime("%Y/%m/%d %H:%M:%S")
+        time_str_short = eth_now.strftime("%H:%M") # Just Hours:Minutes for the phone clock
 
         # Load your CLEANED image template directly into memory
         img_url = "https://i.ibb.co/4RcwTkxf/ja.jpg"
@@ -36,32 +37,42 @@ class handler(BaseHTTPRequestHandler):
         W, H = img.size
         draw = ImageDraw.Draw(img)
         
-        # DOWNLOAD FONT DIRECTLY INTO MEMORY (Fixes the tiny text issue!)
+        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY
         try:
-            font_url = "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf"
+            font_url = "https://github.com/google/fonts/raw/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
             font_req = requests.get(font_url)
             font_bytes = BytesIO(font_req.content)
             
-            font_large = ImageFont.truetype(font_bytes, int(W * 0.08)) # Big text
+            font_large = ImageFont.truetype(font_bytes, int(W * 0.065)) # Big text for Amount
             
-            # Reset memory pointer to read the font again for smaller size
             font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, int(W * 0.035)) # Smaller text
+            font_small = ImageFont.truetype(font_bytes, int(W * 0.032)) # Normal text
+            
+            font_bytes.seek(0)
+            font_top = ImageFont.truetype(font_bytes, int(W * 0.038)) # Phone Clock text
         except Exception:
-            # Absolute fallback if Vercel has no internet
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
+            font_top = ImageFont.load_default()
 
-        # 1. Draw Amount (Centered horizontally, roughly 33% down)
-        draw.text((W * 0.44, H * 0.33), amount, fill="#000000", font=font_large, anchor="mm")
+        # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES (Erases old dots, dashes, and phone time)
+        draw.rectangle([W * 0.20, H * 0.31, W * 0.80, H * 0.38], fill="#FFFFFF") # Main Amount Area
+        draw.rectangle([W * 0.05, H * 0.015, W * 0.16, H * 0.035], fill="#FFFFFF") # Top-Left Phone Clock Area
 
-        # 2. Draw Transaction Time (Right-aligned)
-        draw.text((W * 0.90, H * 0.442), time_str, fill="#000000", font=font_small, anchor="rm")
+        # 1. Draw Top-Left Phone Clock (e.g. 22:54)
+        draw.text((W * 0.06, H * 0.015), time_str_short, fill="#000000", font=font_top)
 
-        # 3. Draw Account Name (Right-aligned)
+        # 2. Draw Full Amount perfectly centered together: e.g. "-60.00 (ብር)"
+        amount_text = f"-{amount} (ብር)"
+        draw.text((W * 0.5, H * 0.345), amount_text, fill="#000000", font=font_large, anchor="mm")
+
+        # 3. Draw Transaction Time (Right-aligned)
+        draw.text((W * 0.90, H * 0.442), time_str_full, fill="#000000", font=font_small, anchor="rm")
+
+        # 4. Draw Account Name (Right-aligned)
         draw.text((W * 0.90, H * 0.525), name, fill="#000000", font=font_small, anchor="rm")
 
-        # 4. Draw Transaction ID (Right-aligned)
+        # 5. Draw Transaction ID (Right-aligned)
         draw.text((W * 0.90, H * 0.565), txid, fill="#000000", font=font_small, anchor="rm")
 
         # Export image back to bytes
