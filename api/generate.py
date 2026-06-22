@@ -1,23 +1,9 @@
-import os
 import requests
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
 from PIL import Image, ImageDraw, ImageFont
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
-
-# Use a standard font for text rendering
-FONT_URL = "https://github.com/google/fonts/raw/main/ofl/notosansethiopic/NotoSansEthiopic-Medium.ttf"
-FONT_PATH = "/tmp/NotoSansEthiopic-Medium.ttf"
-
-def download_font():
-    if not os.path.exists(FONT_PATH):
-        try:
-            r = requests.get(FONT_URL)
-            with open(FONT_PATH, "wb") as f:
-                f.write(r.content)
-        except Exception:
-            pass
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -28,7 +14,7 @@ class handler(BaseHTTPRequestHandler):
         name = query.get("name", ["User"])[0]
         txid = query.get("txid", [""])[0]
         
-        # Format Amount correctly (e.g. 50.00)
+        # Format Amount correctly
         try:
             amount = f"{float(amount):.2f}"
         except:
@@ -39,7 +25,7 @@ class handler(BaseHTTPRequestHandler):
         eth_now = utc_now + timedelta(hours=3)
         time_str = eth_now.strftime("%Y/%m/%d %H:%M:%S")
 
-        # Load your CLEANED image template
+        # Load your CLEANED image template directly into memory
         img_url = "https://i.ibb.co/4RcwTkxf/ja.jpg"
         try:
             r = requests.get(img_url)
@@ -49,29 +35,34 @@ class handler(BaseHTTPRequestHandler):
 
         W, H = img.size
         draw = ImageDraw.Draw(img)
-        download_font()
         
-        # Setup Fonts
+        # DOWNLOAD FONT DIRECTLY INTO MEMORY (Fixes the tiny text issue!)
         try:
-            font_large = ImageFont.truetype(FONT_PATH, int(W * 0.08)) # Big text for Amount
-            font_small = ImageFont.truetype(FONT_PATH, int(W * 0.035)) # Smaller text for details
+            font_url = "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Bold.ttf"
+            font_req = requests.get(font_url)
+            font_bytes = BytesIO(font_req.content)
+            
+            font_large = ImageFont.truetype(font_bytes, int(W * 0.08)) # Big text
+            
+            # Reset memory pointer to read the font again for smaller size
+            font_bytes.seek(0)
+            font_small = ImageFont.truetype(font_bytes, int(W * 0.035)) # Smaller text
         except Exception:
+            # Absolute fallback if Vercel has no internet
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
 
-        # 1. Draw Amount (Centered in the gap between '-' and '(ብር)')
-        # anchor="mm" centers the text perfectly at the given X/Y coordinates
-        draw.text((W * 0.45, H * 0.35), amount, fill="#000000", font=font_large, anchor="mm")
+        # 1. Draw Amount (Centered horizontally, roughly 33% down)
+        draw.text((W * 0.44, H * 0.33), amount, fill="#000000", font=font_large, anchor="mm")
 
-        # 2. Draw Transaction Time (Right-aligned against the margin)
-        # anchor="rm" aligns text to the Right-Middle
-        draw.text((W * 0.92, H * 0.443), time_str, fill="#000000", font=font_small, anchor="rm")
+        # 2. Draw Transaction Time (Right-aligned)
+        draw.text((W * 0.90, H * 0.442), time_str, fill="#000000", font=font_small, anchor="rm")
 
         # 3. Draw Account Name (Right-aligned)
-        draw.text((W * 0.92, H * 0.525), name, fill="#000000", font=font_small, anchor="rm")
+        draw.text((W * 0.90, H * 0.525), name, fill="#000000", font=font_small, anchor="rm")
 
         # 4. Draw Transaction ID (Right-aligned)
-        draw.text((W * 0.92, H * 0.565), txid, fill="#000000", font=font_small, anchor="rm")
+        draw.text((W * 0.90, H * 0.565), txid, fill="#000000", font=font_small, anchor="rm")
 
         # Export image back to bytes
         img_byte_arr = BytesIO()
