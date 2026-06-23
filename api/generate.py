@@ -20,6 +20,7 @@ SIZE_CLOCK = 40        # Size of the top-left phone clock
 FONT_AM_PATH = "/tmp/amharic.ttf"
 FONT_EN_PATH = "/tmp/english.ttf"
 DEFAULT_TEMPLATE_URLS = [
+    "https://github.com/user-attachments/assets/47906285-fc13-4a82-ba02-2d93bd778c6c",
     "https://github.com/user-attachments/assets/5be0258a-7ef7-4a61-9beb-4827f40b52df",
     "https://i.ibb.co/4RcwTkxf/ja.jpg",
 ]
