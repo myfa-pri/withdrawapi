@@ -7,31 +7,60 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 # ==============================================================
-# 🛠️ SETTINGS: EXACT REAL SIZES
+# 🛠️ SETTINGS
 # ==============================================================
-SIZE_AMOUNT_NUM = 110  # Size of the "-60.00"
-SIZE_AMOUNT_AM  = 75   # Size of the "(ብር)"
-SIZE_DETAILS    = 40   # Size of Date, Name, TXID
-SIZE_CLOCK      = 38   # Size of the top-left phone clock
+BASE_WIDTH = 1080
+SIZE_AMOUNT_NUM = 124  # Size of the "-60.00"
+SIZE_AMOUNT_AM = 84    # Size of "(ብር)"
+SIZE_DETAILS = 44      # Size of Date, Name, TXID
+SIZE_CLOCK = 40        # Size of the top-left phone clock
 # ==============================================================
 
 FONT_AM_PATH = "/tmp/amharic.ttf"
 FONT_EN_PATH = "/tmp/english.ttf"
+DEFAULT_TEMPLATE_URLS = [
+    "https://github.com/user-attachments/assets/5be0258a-7ef7-4a61-9beb-4827f40b52df",
+    "https://i.ibb.co/4RcwTkxf/ja.jpg",
+]
+
+
+def scaled(size, width):
+    return max(12, int(round(size * (width / BASE_WIDTH))))
+
 
 def download_fonts():
     # 1. Download Amharic Font (For Name and ብር)
     if not os.path.exists(FONT_AM_PATH) or os.path.getsize(FONT_AM_PATH) < 10000:
-        try:
-            r = requests.get("https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf", timeout=10)
-            with open(FONT_AM_PATH, "wb") as f: f.write(r.content)
-        except: pass
+        amharic_font_urls = [
+            "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic%5Bwght%5D.ttf",
+            "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf",
+        ]
+        for url in amharic_font_urls:
+            try:
+                r = requests.get(url, timeout=10)
+                if r.ok and len(r.content) > 10000:
+                    with open(FONT_AM_PATH, "wb") as f:
+                        f.write(r.content)
+                    break
+            except Exception:
+                continue
 
     # 2. Download English Font (For Numbers, Dates, IDs)
     if not os.path.exists(FONT_EN_PATH) or os.path.getsize(FONT_EN_PATH) < 10000:
-        try:
-            r = requests.get("https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Medium.ttf", timeout=10)
-            with open(FONT_EN_PATH, "wb") as f: f.write(r.content)
-        except: pass
+        english_font_urls = [
+            "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto%5Bwdth,wght%5D.ttf",
+            "https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Medium.ttf",
+        ]
+        for url in english_font_urls:
+            try:
+                r = requests.get(url, timeout=10)
+                if r.ok and len(r.content) > 10000:
+                    with open(FONT_EN_PATH, "wb") as f:
+                        f.write(r.content)
+                    break
+            except Exception:
+                continue
+
 
 def is_amharic(text):
     # Detects if the text contains any Amharic characters
@@ -40,61 +69,103 @@ def is_amharic(text):
             return True
     return False
 
+
+def parse_ethiopia_time(raw_time):
+    if not raw_time:
+        utc_now = datetime.now(timezone.utc)
+        return utc_now + timedelta(hours=3)
+
+    formats = ["%Y/%m/%d %H:%M:%S", "%Y-%m-%d %H:%M:%S", "%Y/%m/%d %H:%M", "%Y-%m-%d %H:%M"]
+    for fmt in formats:
+        try:
+            parsed = datetime.strptime(raw_time, fmt)
+            return parsed.replace(tzinfo=timezone(timedelta(hours=3)))
+        except ValueError:
+            continue
+
+    try:
+        parsed = datetime.fromisoformat(raw_time.replace("Z", "+00:00"))
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=timezone(timedelta(hours=3)))
+        return parsed.astimezone(timezone(timedelta(hours=3)))
+    except ValueError:
+        utc_now = datetime.now(timezone.utc)
+        return utc_now + timedelta(hours=3)
+
+
+def load_template(url):
+    urls = [url] if url else DEFAULT_TEMPLATE_URLS
+    for img_url in urls:
+        try:
+            r = requests.get(img_url, timeout=12)
+            if r.ok and len(r.content) > 10000:
+                return Image.open(BytesIO(r.content)).convert("RGB")
+        except Exception:
+            continue
+    return Image.new("RGB", (1080, 2400), "#FFFFFF")
+
+
+def load_font(path, size, fallback_paths):
+    try:
+        if os.path.exists(path) and os.path.getsize(path) > 10000:
+            return ImageFont.truetype(path, size)
+    except Exception:
+        pass
+
+    for fallback in fallback_paths:
+        try:
+            return ImageFont.truetype(fallback, size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-        
+
         # Get query parameters
         amount = query.get("amount", ["0.00"])[0]
         name = query.get("name", ["User"])[0]
         txid = query.get("txid", [""])[0]
-        
+        image_url = query.get("template_url", [""])[0]
+        raw_time = query.get("time", [""])[0]
+        mask_txid = query.get("mask_txid", ["false"])[0].lower() == "true"
+
         # Format Amount correctly
         try:
-            amount = f"{float(amount):.2f}"
-        except:
-            pass
+            amount = f"{abs(float(amount)):.2f}"
+        except Exception:
+            amount = "0.00"
 
         # Calculate exact Ethiopian Time (UTC+3)
-        utc_now = datetime.now(timezone.utc)
-        eth_now = utc_now + timedelta(hours=3)
+        eth_now = parse_ethiopia_time(raw_time)
         time_str_full = eth_now.strftime("%Y/%m/%d %H:%M:%S")
-        time_str_short = eth_now.strftime("%H:%M") # Just Hours:Minutes for the phone clock
+        time_str_short = eth_now.strftime("%H:%M")
 
-        # --- BLEND / HIDE PART OF THE TRANSACTION ID ---
-        if len(txid) >= 7:
+        # Optional TXID masking
+        if mask_txid and len(txid) >= 7:
             display_txid = txid[:3] + "***" + txid[-3:]
         else:
             display_txid = txid
 
-        # Load your CLEANED image template
-        img_url = "https://i.ibb.co/4RcwTkxf/ja.jpg"
-        try:
-            r = requests.get(img_url)
-            img = Image.open(BytesIO(r.content)).convert("RGB")
-        except Exception:
-            img = Image.new("RGB", (1080, 2400), "#FFFFFF")
+        # Load image template
+        img = load_template(image_url)
 
         W, H = img.size
         draw = ImageDraw.Draw(img)
-        
+
         # --- LOAD FONTS ---
         download_fonts()
-        try:
-            # Amharic Fonts
-            font_am_large = ImageFont.truetype(FONT_AM_PATH, SIZE_AMOUNT_AM)
-            font_am_details = ImageFont.truetype(FONT_AM_PATH, SIZE_DETAILS)
-            
-            # English/Number Fonts
-            font_en_large = ImageFont.truetype(FONT_EN_PATH, SIZE_AMOUNT_NUM)
-            font_en_details = ImageFont.truetype(FONT_EN_PATH, SIZE_DETAILS)
-            font_en_clock = ImageFont.truetype(FONT_EN_PATH, SIZE_CLOCK)
-        except:
-            font_am_large = font_am_details = font_en_large = font_en_details = font_en_clock = ImageFont.load_default()
+        font_am_large = load_font(FONT_AM_PATH, scaled(SIZE_AMOUNT_AM, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_am_details = load_font(FONT_AM_PATH, scaled(SIZE_DETAILS, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_en_large = load_font(FONT_EN_PATH, scaled(SIZE_AMOUNT_NUM, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_en_details = load_font(FONT_EN_PATH, scaled(SIZE_DETAILS, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_en_clock = load_font(FONT_EN_PATH, scaled(SIZE_CLOCK, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
 
         # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES
-        draw.rectangle([W * 0.10, H * 0.30, W * 0.90, H * 0.39], fill="#FFFFFF") # Main Amount Area
-        draw.rectangle([W * 0.04, H * 0.012, W * 0.18, H * 0.038], fill="#FFFFFF") # Top-Left Phone Clock Area
+        draw.rectangle([W * 0.10, H * 0.30, W * 0.90, H * 0.39], fill="#FFFFFF")
+        draw.rectangle([W * 0.04, H * 0.012, W * 0.18, H * 0.038], fill="#FFFFFF")
 
         text_color = "#151515"
 
@@ -104,13 +175,12 @@ class handler(BaseHTTPRequestHandler):
         # 2. Draw Full Amount (Numbers in English Font, "(ብር)" in Amharic Font)
         num_text = f"-{amount}"
         am_text = " (ብር)"
-        
-        # Calculate exactly where to put them so they are perfectly centered together
+
+        # Calculate exactly where to put them so they are centered together
         w_num = draw.textlength(num_text, font=font_en_large)
-        w_am = draw.textlength(am_text, font=font_am_large)
-        total_w = w_num + w_am
+        total_w = w_num + draw.textlength(am_text, font=font_am_large)
         start_x = (W - total_w) / 2
-        
+
         draw.text((start_x, H * 0.345), num_text, fill=text_color, font=font_en_large, anchor="lm")
         draw.text((start_x + w_num, H * 0.345), am_text, fill=text_color, font=font_am_large, anchor="lm")
 
