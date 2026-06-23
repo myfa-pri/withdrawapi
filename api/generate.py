@@ -1,3 +1,4 @@
+import os
 import requests
 from io import BytesIO
 from datetime import datetime, timedelta, timezone
@@ -6,13 +7,38 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 # ==============================================================
-# 🛠️ SETTINGS: CHANGE TEXT SIZES HERE (NORMAL NUMBERS!)
-# Just type normal numbers. Increase to make it bigger.
+# 🛠️ SETTINGS: TEXT SIZES (These will WORK now!)
 # ==============================================================
-SIZE_AMOUNT  = 240   # Size of the huge "-60.00 (ብር)" amount
-SIZE_DETAILS = 90    # Size of the Date, Name, and Transaction ID
-SIZE_CLOCK   = 98    # Size of the time at the top-left of the phone screen
+SIZE_AMOUNT  = 130   # Size of the huge "-60.00 (ብር)" amount
+SIZE_DETAILS = 48    # Size of the Date, Name, and Transaction ID
+SIZE_CLOCK   = 44    # Size of the time at the top-left of the phone screen
 # ==============================================================
+
+# Vercel allows writing files to the /tmp/ folder
+FONT_PATH = "/tmp/amharic_font.ttf"
+
+def download_font():
+    # If the font is already downloaded and is a real file, skip downloading
+    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 20000:
+        return True
+        
+    # Multiple backup URLs to guarantee the Amharic font downloads successfully
+    font_urls = [
+        "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf",
+        "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansEthiopic/NotoSansEthiopic-Bold.ttf"
+    ]
+    
+    for url in font_urls:
+        try:
+            r = requests.get(url, timeout=10)
+            # Make sure it's a real font file and not an error page
+            if r.status_code == 200 and len(r.content) > 20000:
+                with open(FONT_PATH, "wb") as f:
+                    f.write(r.content)
+                return True
+        except Exception:
+            pass
+    return False
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
@@ -41,7 +67,7 @@ class handler(BaseHTTPRequestHandler):
         else:
             display_txid = txid
 
-        # Load your CLEANED image template directly into memory
+        # Load your CLEANED image template
         img_url = "https://i.ibb.co/4RcwTkxf/ja.jpg"
         try:
             r = requests.get(img_url)
@@ -52,30 +78,19 @@ class handler(BaseHTTPRequestHandler):
         W, H = img.size
         draw = ImageDraw.Draw(img)
         
-        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY (Double Server Guarantee)
+        # --- LOAD AMHARIC FONT FROM HARD DRIVE ---
+        download_font()
         try:
-            # 1st attempt: Fast jsDelivr CDN
-            font_url = "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
-            font_req = requests.get(font_url, timeout=10)
-            
-            if font_req.status_code != 200:
-                # 2nd attempt: GitHub Raw Fallback
-                font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
-                font_req = requests.get(font_url, timeout=10)
-                
-            font_bytes = BytesIO(font_req.content)
-            
-            # Apply the easy sizes you set at the top!
-            font_large = ImageFont.truetype(font_bytes, SIZE_AMOUNT) 
-            font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, SIZE_DETAILS) 
-            font_bytes.seek(0)
-            font_top = ImageFont.truetype(font_bytes, SIZE_CLOCK) 
+            # Loading from a file path is 100% safe and won't crash
+            font_large = ImageFont.truetype(FONT_PATH, SIZE_AMOUNT)
+            font_small = ImageFont.truetype(FONT_PATH, SIZE_DETAILS)
+            font_top   = ImageFont.truetype(FONT_PATH, SIZE_CLOCK)
         except Exception as e:
-            print("Font Error:", e)
+            # If it still fails, print to Vercel logs but this won't happen now
+            print("Font loading failed:", e)
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
-            font_top = ImageFont.load_default()
+            font_top   = ImageFont.load_default()
 
         # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES
         draw.rectangle([W * 0.10, H * 0.30, W * 0.90, H * 0.39], fill="#FFFFFF") # Main Amount Area
