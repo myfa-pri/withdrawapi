@@ -6,13 +6,12 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 # ==============================================================
-# 🛠️ SETTINGS: CHANGE TEXT SIZES HERE
-# Increase these numbers to make text BIGGER. 
-# Decrease them to make text SMALLER.
+# 🛠️ SETTINGS: CHANGE TEXT SIZES HERE (NORMAL NUMBERS!)
+# Just type normal numbers. Increase to make it bigger.
 # ==============================================================
-SIZE_AMOUNT  = 0.830   # Size of the huge "-60.00 (ብር)" amount
-SIZE_DETAILS = 0.955   # Size of the Date, Name, and Transaction ID
-SIZE_CLOCK   = 0.945   # Size of the time at the top-left of the phone screen
+SIZE_AMOUNT  = 140   # Size of the huge "-60.00 (ብር)" amount
+SIZE_DETAILS = 50    # Size of the Date, Name, and Transaction ID
+SIZE_CLOCK   = 48    # Size of the time at the top-left of the phone screen
 # ==============================================================
 
 class handler(BaseHTTPRequestHandler):
@@ -53,21 +52,27 @@ class handler(BaseHTTPRequestHandler):
         W, H = img.size
         draw = ImageDraw.Draw(img)
         
-        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY (Fixed URL to prevent boxes!)
+        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY (Double Server Guarantee)
         try:
-            # Using raw.githubusercontent to guarantee Vercel doesn't block the Amharic font download
-            font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            font_req = requests.get(font_url, headers=headers, timeout=10)
+            # 1st attempt: Fast jsDelivr CDN
+            font_url = "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
+            font_req = requests.get(font_url, timeout=10)
+            
+            if font_req.status_code != 200:
+                # 2nd attempt: GitHub Raw Fallback
+                font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
+                font_req = requests.get(font_url, timeout=10)
+                
             font_bytes = BytesIO(font_req.content)
             
-            # Apply the sizes you set at the top!
-            font_large = ImageFont.truetype(font_bytes, int(W * SIZE_AMOUNT)) 
+            # Apply the easy sizes you set at the top!
+            font_large = ImageFont.truetype(font_bytes, SIZE_AMOUNT) 
             font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, int(W * SIZE_DETAILS)) 
+            font_small = ImageFont.truetype(font_bytes, SIZE_DETAILS) 
             font_bytes.seek(0)
-            font_top = ImageFont.truetype(font_bytes, int(W * SIZE_CLOCK)) 
+            font_top = ImageFont.truetype(font_bytes, SIZE_CLOCK) 
         except Exception as e:
+            print("Font Error:", e)
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
             font_top = ImageFont.load_default()
