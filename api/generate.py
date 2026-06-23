@@ -93,9 +93,8 @@ def parse_ethiopia_time(raw_time):
         return utc_now + timedelta(hours=3)
 
 
-def load_template(url):
-    urls = [url] if url else DEFAULT_TEMPLATE_URLS
-    for img_url in urls:
+def load_template():
+    for img_url in DEFAULT_TEMPLATE_URLS:
         try:
             r = requests.get(img_url, timeout=12)
             if r.ok and len(r.content) > 10000:
@@ -128,7 +127,6 @@ class handler(BaseHTTPRequestHandler):
         amount = query.get("amount", ["0.00"])[0]
         name = query.get("name", ["User"])[0]
         txid = query.get("txid", [""])[0]
-        image_url = query.get("template_url", [""])[0]
         raw_time = query.get("time", [""])[0]
         mask_txid = query.get("mask_txid", ["false"])[0].lower() == "true"
 
@@ -150,7 +148,7 @@ class handler(BaseHTTPRequestHandler):
             display_txid = txid
 
         # Load image template
-        img = load_template(image_url)
+        img = load_template()
 
         W, H = img.size
         draw = ImageDraw.Draw(img)
