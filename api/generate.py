@@ -9,9 +9,9 @@ from urllib.parse import parse_qs, urlparse
 # ==============================================================
 # 🛠️ SETTINGS: TEXT SIZES (These will WORK now!)
 # ==============================================================
-SIZE_AMOUNT  = 130   # Size of the huge "-60.00 (ብር)" amount
-SIZE_DETAILS = 48    # Size of the Date, Name, and Transaction ID
-SIZE_CLOCK   = 44    # Size of the time at the top-left of the phone screen
+SIZE_AMOUNT  = 105   # Size of the huge "-60.00 (ብር)" amount
+SIZE_DETAILS = 28    # Size of the Date, Name, and Transaction ID
+SIZE_CLOCK   = 24    # Size of the time at the top-left of the phone screen
 # ==============================================================
 
 # Vercel allows writing files to the /tmp/ folder
