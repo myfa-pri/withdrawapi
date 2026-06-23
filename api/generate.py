@@ -11,8 +11,9 @@ from urllib.parse import parse_qs, urlparse
 # ==============================================================
 BASE_WIDTH = 1080
 SIZE_AMOUNT_NUM = 124  # Size of the "-60.00"
-SIZE_AMOUNT_AM = 84    # Size of "(ብር)"
-SIZE_DETAILS = 44      # Size of Date, Name, TXID
+SIZE_AMOUNT_AM = 96    # Size of "(ብር)"
+SIZE_DETAILS = 44      # Size of Date
+SIZE_NAME_TXID = 54    # Size of Name and TXID
 SIZE_CLOCK = 40        # Size of the top-left phone clock
 # ==============================================================
 
@@ -157,8 +158,10 @@ class handler(BaseHTTPRequestHandler):
         download_fonts()
         font_am_large = load_font(FONT_AM_PATH, scaled(SIZE_AMOUNT_AM, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
         font_am_details = load_font(FONT_AM_PATH, scaled(SIZE_DETAILS, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_am_name_txid = load_font(FONT_AM_PATH, scaled(SIZE_NAME_TXID, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
         font_en_large = load_font(FONT_EN_PATH, scaled(SIZE_AMOUNT_NUM, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
         font_en_details = load_font(FONT_EN_PATH, scaled(SIZE_DETAILS, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
+        font_en_name_txid = load_font(FONT_EN_PATH, scaled(SIZE_NAME_TXID, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
         font_en_clock = load_font(FONT_EN_PATH, scaled(SIZE_CLOCK, W), ["/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"])
 
         # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES
@@ -184,10 +187,10 @@ class handler(BaseHTTPRequestHandler):
 
         # 3. Draw Transaction Time & ID (Always English Numbers)
         draw.text((W * 0.90, H * 0.442), time_str_full, fill=text_color, font=font_en_details, anchor="rm")
-        draw.text((W * 0.90, H * 0.565), display_txid, fill=text_color, font=font_en_details, anchor="rm")
+        draw.text((W * 0.90, H * 0.565), display_txid, fill=text_color, font=font_en_name_txid, anchor="rm")
 
         # 4. Draw Account Name (Checks if Amharic or English, picks the right font)
-        name_font = font_am_details if is_amharic(name) else font_en_details
+        name_font = font_am_name_txid if is_amharic(name) else font_en_name_txid
         draw.text((W * 0.90, H * 0.525), name, fill=text_color, font=name_font, anchor="rm")
 
         # Export image back to bytes
