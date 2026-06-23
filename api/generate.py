@@ -5,95 +5,95 @@ from PIL import Image, ImageDraw, ImageFont
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
-
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
-
-        # Get parameters
+        
+        # Get query parameters
         amount = query.get("amount", ["0.00"])[0]
         name = query.get("name", ["User"])[0]
         txid = query.get("txid", [""])[0]
-
-        # Format amount
+        
+        # Format Amount correctly
         try:
             amount = f"{float(amount):.2f}"
         except:
             pass
 
-        # Ethiopian Time (UTC+3)
+        # Calculate exact Ethiopian Time (UTC+3)
         utc_now = datetime.now(timezone.utc)
         eth_now = utc_now + timedelta(hours=3)
-
         time_str_full = eth_now.strftime("%Y/%m/%d %H:%M:%S")
-        time_str_short = eth_now.strftime("%H:%M")
+        time_str_short = eth_now.strftime("%H:%M") # Just Hours:Minutes for the phone clock
 
-        # Hide TXID
+        # --- BLEND / HIDE PART OF THE TRANSACTION ID ---
         if len(txid) >= 7:
             display_txid = txid[:3] + "***" + txid[-3:]
         else:
             display_txid = txid
 
-        # Load template
+        # Load your CLEANED image template directly into memory
         img_url = "https://i.ibb.co/4RcwTkxf/ja.jpg"
         try:
             r = requests.get(img_url)
             img = Image.open(BytesIO(r.content)).convert("RGB")
-        except:
+        except Exception:
             img = Image.new("RGB", (1080, 2400), "#FFFFFF")
 
         W, H = img.size
         draw = ImageDraw.Draw(img)
-
-        # Load font
+        
+        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY
         try:
-            font_url = "https://github.com/google/fonts/raw/main/ofl/notosansethiopic/NotoSansEthiopic-Regular.ttf"
+            font_url = "https://github.com/google/fonts/raw/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
             font_req = requests.get(font_url)
             font_bytes = BytesIO(font_req.content)
-
-            base = W / 1080  # scale factor
-
-            font_large = ImageFont.truetype(font_bytes, int(110 * base))   # BIG
+            
+            # --- BIGGER TEXT SIZES TO MATCH ORIGINAL APP LABELS ---
+            font_large = ImageFont.truetype(font_bytes, int(W * 0.115)) # Massive Amount Text
+            
             font_bytes.seek(0)
-            font_medium = ImageFont.truetype(font_bytes, int(52 * base))  # medium
+            font_small = ImageFont.truetype(font_bytes, int(W * 0.046)) # Matches the left-side text perfectly
+            
             font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, int(42 * base))   # small
-            font_bytes.seek(0)
-            font_top = ImageFont.truetype(font_bytes, int(46 * base))     # clock
+            font_top = ImageFont.truetype(font_bytes, int(W * 0.046)) # Matches top phone UI time
+        except Exception:
+            font_large = ImageFont.load_default()
+            font_small = ImageFont.load_default()
+            font_top = ImageFont.load_default()
 
-        except:
-            font_large = font_medium = font_small = font_top = ImageFont.load_default()
+        # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES (Slightly larger boxes for bigger text)
+        draw.rectangle([W * 0.15, H * 0.30, W * 0.85, H * 0.39], fill="#FFFFFF") # Main Amount Area
+        draw.rectangle([W * 0.04, H * 0.012, W * 0.18, H * 0.038], fill="#FFFFFF") # Top-Left Phone Clock Area
 
-        # Clean areas
-        draw.rectangle([W * 0.2, H * 0.30, W * 0.8, H * 0.40], fill="#FFFFFF")
-        draw.rectangle([W * 0.05, H * 0.01, W * 0.18, H * 0.05], fill="#FFFFFF")
+        # Use a slightly softer dark color instead of pitch black to blend into a screenshot better
+        text_color = "#151515"
 
-        # --- TOP CLOCK ---
-        draw.text((W * 0.06, H * 0.02), time_str_short, fill="#111111", font=font_top)
+        # 1. Draw Top-Left Phone Clock
+        draw.text((W * 0.06, H * 0.015), time_str_short, fill=text_color, font=font_top)
 
-        # --- AMOUNT (BIG + SHADOW) ---
-        amount_text = f"-{amount} ብር"
+        # 2. Draw Full Amount perfectly centered
+        amount_text = f"-{amount} (ብር)"
+        draw.text((W * 0.5, H * 0.345), amount_text, fill=text_color, font=font_large, anchor="mm")
 
-        # shadow
-        draw.text((W * 0.502, H * 0.352), amount_text, fill="#000000", font=font_large, anchor="mm")
-        # main
-        draw.text((W * 0.5, H * 0.35), amount_text, fill="#111111", font=font_large, anchor="mm")
+        # 3. Draw Transaction Time (Right-aligned)
+        draw.text((W * 0.90, H * 0.442), time_str_full, fill=text_color, font=font_small, anchor="rm")
 
-        # --- RIGHT SIDE TEXTS ---
-        draw.text((W * 0.92, H * 0.44), time_str_full, fill="#222222", font=font_medium, anchor="rm")
+        # 4. Draw Account Name (Right-aligned)
+        draw.text((W * 0.90, H * 0.525), name, fill=text_color, font=font_small, anchor="rm")
 
-        draw.text((W * 0.92, H * 0.525), name, fill="#111111", font=font_medium, anchor="rm")
+        # 5. Draw Transaction ID (Right-aligned with Asterisks)
+        draw.text((W * 0.90, H * 0.565), display_txid, fill=text_color, font=font_small, anchor="rm")
 
-        draw.text((W * 0.92, H * 0.575), display_txid, fill="#333333", font=font_small, anchor="rm")
-
-        # Export
+        # Export image back to bytes
         img_byte_arr = BytesIO()
         img.save(img_byte_arr, format='JPEG', quality=95)
         img_byte_arr = img_byte_arr.getvalue()
 
-        # Response
+        # Send Image Response
         self.send_response(200)
         self.send_header('Content-Type', 'image/jpeg')
         self.send_header('Content-Length', str(len(img_byte_arr)))
         self.end_headers()
         self.wfile.write(img_byte_arr)
+        return
