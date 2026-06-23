@@ -5,6 +5,16 @@ from PIL import Image, ImageDraw, ImageFont
 from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
+# ==============================================================
+# 🛠️ SETTINGS: CHANGE TEXT SIZES HERE
+# Increase these numbers to make text BIGGER. 
+# Decrease them to make text SMALLER.
+# ==============================================================
+SIZE_AMOUNT  = 0.130   # Size of the huge "-60.00 (ብር)" amount
+SIZE_DETAILS = 0.055   # Size of the Date, Name, and Transaction ID
+SIZE_CLOCK   = 0.045   # Size of the time at the top-left of the phone screen
+# ==============================================================
+
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
         query = parse_qs(urlparse(self.path).query)
@@ -43,30 +53,30 @@ class handler(BaseHTTPRequestHandler):
         W, H = img.size
         draw = ImageDraw.Draw(img)
         
-        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY
+        # DOWNLOAD AMHARIC FONT DIRECTLY INTO MEMORY (Fixed URL to prevent boxes!)
         try:
-            font_url = "https://github.com/google/fonts/raw/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
-            font_req = requests.get(font_url)
+            # Using raw.githubusercontent to guarantee Vercel doesn't block the Amharic font download
+            font_url = "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf"
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            font_req = requests.get(font_url, headers=headers, timeout=10)
             font_bytes = BytesIO(font_req.content)
             
-            # --- BIGGER TEXT SIZES TO MATCH ORIGINAL APP LABELS ---
-            font_large = ImageFont.truetype(font_bytes, int(W * 0.115)) # Massive Amount Text
-            
+            # Apply the sizes you set at the top!
+            font_large = ImageFont.truetype(font_bytes, int(W * SIZE_AMOUNT)) 
             font_bytes.seek(0)
-            font_small = ImageFont.truetype(font_bytes, int(W * 0.046)) # Matches the left-side text perfectly
-            
+            font_small = ImageFont.truetype(font_bytes, int(W * SIZE_DETAILS)) 
             font_bytes.seek(0)
-            font_top = ImageFont.truetype(font_bytes, int(W * 0.046)) # Matches top phone UI time
-        except Exception:
+            font_top = ImageFont.truetype(font_bytes, int(W * SIZE_CLOCK)) 
+        except Exception as e:
             font_large = ImageFont.load_default()
             font_small = ImageFont.load_default()
             font_top = ImageFont.load_default()
 
-        # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES (Slightly larger boxes for bigger text)
-        draw.rectangle([W * 0.15, H * 0.30, W * 0.85, H * 0.39], fill="#FFFFFF") # Main Amount Area
+        # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES
+        draw.rectangle([W * 0.10, H * 0.30, W * 0.90, H * 0.39], fill="#FFFFFF") # Main Amount Area
         draw.rectangle([W * 0.04, H * 0.012, W * 0.18, H * 0.038], fill="#FFFFFF") # Top-Left Phone Clock Area
 
-        # Use a slightly softer dark color instead of pitch black to blend into a screenshot better
+        # Dark gray color so it looks natural on a screen
         text_color = "#151515"
 
         # 1. Draw Top-Left Phone Clock
