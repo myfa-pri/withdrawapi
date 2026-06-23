@@ -10,9 +10,9 @@ from urllib.parse import parse_qs, urlparse
 # Increase these numbers to make text BIGGER. 
 # Decrease them to make text SMALLER.
 # ==============================================================
-SIZE_AMOUNT  = 0.130   # Size of the huge "-60.00 (ብር)" amount
-SIZE_DETAILS = 0.055   # Size of the Date, Name, and Transaction ID
-SIZE_CLOCK   = 0.045   # Size of the time at the top-left of the phone screen
+SIZE_AMOUNT  = 0.430   # Size of the huge "-60.00 (ብር)" amount
+SIZE_DETAILS = 0.355   # Size of the Date, Name, and Transaction ID
+SIZE_CLOCK   = 0.345   # Size of the time at the top-left of the phone screen
 # ==============================================================
 
 class handler(BaseHTTPRequestHandler):
