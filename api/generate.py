@@ -7,37 +7,37 @@ from http.server import BaseHTTPRequestHandler
 from urllib.parse import parse_qs, urlparse
 
 # ==============================================================
-# 🛠️ SETTINGS: TEXT SIZES (These will WORK now!)
+# 🛠️ SETTINGS: EXACT REAL SIZES
 # ==============================================================
-SIZE_AMOUNT  = 105   # Size of the huge "-60.00 (ብር)" amount
-SIZE_DETAILS = 28    # Size of the Date, Name, and Transaction ID
-SIZE_CLOCK   = 24    # Size of the time at the top-left of the phone screen
+SIZE_AMOUNT_NUM = 110  # Size of the "-60.00"
+SIZE_AMOUNT_AM  = 75   # Size of the "(ብር)"
+SIZE_DETAILS    = 40   # Size of Date, Name, TXID
+SIZE_CLOCK      = 38   # Size of the top-left phone clock
 # ==============================================================
 
-# Vercel allows writing files to the /tmp/ folder
-FONT_PATH = "/tmp/amharic_font.ttf"
+FONT_AM_PATH = "/tmp/amharic.ttf"
+FONT_EN_PATH = "/tmp/english.ttf"
 
-def download_font():
-    # If the font is already downloaded and is a real file, skip downloading
-    if os.path.exists(FONT_PATH) and os.path.getsize(FONT_PATH) > 20000:
-        return True
-        
-    # Multiple backup URLs to guarantee the Amharic font downloads successfully
-    font_urls = [
-        "https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf",
-        "https://github.com/googlefonts/noto-fonts/raw/main/hinted/ttf/NotoSansEthiopic/NotoSansEthiopic-Bold.ttf"
-    ]
-    
-    for url in font_urls:
+def download_fonts():
+    # 1. Download Amharic Font (For Name and ብር)
+    if not os.path.exists(FONT_AM_PATH) or os.path.getsize(FONT_AM_PATH) < 10000:
         try:
-            r = requests.get(url, timeout=10)
-            # Make sure it's a real font file and not an error page
-            if r.status_code == 200 and len(r.content) > 20000:
-                with open(FONT_PATH, "wb") as f:
-                    f.write(r.content)
-                return True
-        except Exception:
-            pass
+            r = requests.get("https://raw.githubusercontent.com/google/fonts/main/ofl/notosansethiopic/NotoSansEthiopic-Bold.ttf", timeout=10)
+            with open(FONT_AM_PATH, "wb") as f: f.write(r.content)
+        except: pass
+
+    # 2. Download English Font (For Numbers, Dates, IDs)
+    if not os.path.exists(FONT_EN_PATH) or os.path.getsize(FONT_EN_PATH) < 10000:
+        try:
+            r = requests.get("https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Medium.ttf", timeout=10)
+            with open(FONT_EN_PATH, "wb") as f: f.write(r.content)
+        except: pass
+
+def is_amharic(text):
+    # Detects if the text contains any Amharic characters
+    for char in text:
+        if '\u1200' <= char <= '\u137F':
+            return True
     return False
 
 class handler(BaseHTTPRequestHandler):
@@ -78,42 +78,49 @@ class handler(BaseHTTPRequestHandler):
         W, H = img.size
         draw = ImageDraw.Draw(img)
         
-        # --- LOAD AMHARIC FONT FROM HARD DRIVE ---
-        download_font()
+        # --- LOAD FONTS ---
+        download_fonts()
         try:
-            # Loading from a file path is 100% safe and won't crash
-            font_large = ImageFont.truetype(FONT_PATH, SIZE_AMOUNT)
-            font_small = ImageFont.truetype(FONT_PATH, SIZE_DETAILS)
-            font_top   = ImageFont.truetype(FONT_PATH, SIZE_CLOCK)
-        except Exception as e:
-            # If it still fails, print to Vercel logs but this won't happen now
-            print("Font loading failed:", e)
-            font_large = ImageFont.load_default()
-            font_small = ImageFont.load_default()
-            font_top   = ImageFont.load_default()
+            # Amharic Fonts
+            font_am_large = ImageFont.truetype(FONT_AM_PATH, SIZE_AMOUNT_AM)
+            font_am_details = ImageFont.truetype(FONT_AM_PATH, SIZE_DETAILS)
+            
+            # English/Number Fonts
+            font_en_large = ImageFont.truetype(FONT_EN_PATH, SIZE_AMOUNT_NUM)
+            font_en_details = ImageFont.truetype(FONT_EN_PATH, SIZE_DETAILS)
+            font_en_clock = ImageFont.truetype(FONT_EN_PATH, SIZE_CLOCK)
+        except:
+            font_am_large = font_am_details = font_en_large = font_en_details = font_en_clock = ImageFont.load_default()
 
         # 0. WIPE THE AREAS CLEAN WITH WHITE BOXES
         draw.rectangle([W * 0.10, H * 0.30, W * 0.90, H * 0.39], fill="#FFFFFF") # Main Amount Area
         draw.rectangle([W * 0.04, H * 0.012, W * 0.18, H * 0.038], fill="#FFFFFF") # Top-Left Phone Clock Area
 
-        # Dark gray color so it looks natural on a screen
         text_color = "#151515"
 
-        # 1. Draw Top-Left Phone Clock
-        draw.text((W * 0.06, H * 0.015), time_str_short, fill=text_color, font=font_top)
+        # 1. Draw Top-Left Phone Clock (Always English)
+        draw.text((W * 0.06, H * 0.015), time_str_short, fill=text_color, font=font_en_clock)
 
-        # 2. Draw Full Amount perfectly centered
-        amount_text = f"-{amount} (ብር)"
-        draw.text((W * 0.5, H * 0.345), amount_text, fill=text_color, font=font_large, anchor="mm")
+        # 2. Draw Full Amount (Numbers in English Font, "(ብር)" in Amharic Font)
+        num_text = f"-{amount}"
+        am_text = " (ብር)"
+        
+        # Calculate exactly where to put them so they are perfectly centered together
+        w_num = draw.textlength(num_text, font=font_en_large)
+        w_am = draw.textlength(am_text, font=font_am_large)
+        total_w = w_num + w_am
+        start_x = (W - total_w) / 2
+        
+        draw.text((start_x, H * 0.345), num_text, fill=text_color, font=font_en_large, anchor="lm")
+        draw.text((start_x + w_num, H * 0.345), am_text, fill=text_color, font=font_am_large, anchor="lm")
 
-        # 3. Draw Transaction Time (Right-aligned)
-        draw.text((W * 0.90, H * 0.442), time_str_full, fill=text_color, font=font_small, anchor="rm")
+        # 3. Draw Transaction Time & ID (Always English Numbers)
+        draw.text((W * 0.90, H * 0.442), time_str_full, fill=text_color, font=font_en_details, anchor="rm")
+        draw.text((W * 0.90, H * 0.565), display_txid, fill=text_color, font=font_en_details, anchor="rm")
 
-        # 4. Draw Account Name (Right-aligned)
-        draw.text((W * 0.90, H * 0.525), name, fill=text_color, font=font_small, anchor="rm")
-
-        # 5. Draw Transaction ID (Right-aligned with Asterisks)
-        draw.text((W * 0.90, H * 0.565), display_txid, fill=text_color, font=font_small, anchor="rm")
+        # 4. Draw Account Name (Checks if Amharic or English, picks the right font)
+        name_font = font_am_details if is_amharic(name) else font_en_details
+        draw.text((W * 0.90, H * 0.525), name, fill=text_color, font=name_font, anchor="rm")
 
         # Export image back to bytes
         img_byte_arr = BytesIO()
