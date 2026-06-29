@@ -156,15 +156,15 @@ class handler(BaseHTTPRequestHandler):
         text_color = "#000000"
         # 1. Draw Top-Left Phone Clock (Always English)
         draw.text((W * 0.05, H * 0.019), time_str_short, fill=text_color, font=font_en_clock)
-        # 2. Draw Full Amount (Number only, perfectly centered horizontally)
+        # 2. Draw Full Amount (Number only, right-aligned to match the red box next to the fixed (ብር))
         num_text = f"-{amount}"
-        draw.text((W / 2, H * 0.345), num_text, fill=text_color, font=font_en_large, anchor="mm")
+        draw.text((W * 0.56, H * 0.350), num_text, fill=text_color, font=font_en_large, anchor="rm")
         # 3. Draw Transaction Time & ID (Always English Numbers)
-        draw.text((W * 0.90, H * 0.448), time_str_full, fill=text_color, font=font_en_details, anchor="rm")
-        draw.text((W * 0.90, H * 0.575), display_txid, fill=text_color, font=font_en_name_txid, anchor="rm")
+        draw.text((W * 0.86, H * 0.450), time_str_full, fill=text_color, font=font_en_details, anchor="rm")
+        draw.text((W * 0.86, H * 0.578), display_txid, fill=text_color, font=font_en_name_txid, anchor="rm")
         # 4. Draw Account Name (Checks if Amharic or English, picks the right font)
         name_font = font_am_name_txid if is_amharic(name) else font_en_name_txid
-        draw.text((W * 0.90, H * 0.533), name, fill=text_color, font=name_font, anchor="rm")
+        draw.text((W * 0.86, H * 0.535), name, fill=text_color, font=name_font, anchor="rm")
         # Export image back to bytes
         img_byte_arr = BytesIO()
         img.save(img_byte_arr, format='JPEG', quality=95)
