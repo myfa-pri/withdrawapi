@@ -42,8 +42,8 @@ def download_fonts():
     # 2. Download English Font (For Numbers, Dates, IDs)
     if not os.path.exists(FONT_EN_PATH) or os.path.getsize(FONT_EN_PATH) < 10000:
         english_font_urls = [
-            "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto-Regular.ttf",
-            "https://raw.githubusercontent.com/google/fonts/main/apache/roboto/Roboto-Medium.ttf",
+            "https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Regular.ttf",
+            "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Regular.ttf"
         ]
         for url in english_font_urls:
             try:
@@ -56,8 +56,8 @@ def download_fonts():
                 continue
     if not os.path.exists(FONT_EN_BOLD_PATH) or os.path.getsize(FONT_EN_BOLD_PATH) < 10000:
         english_bold_urls = [
-            "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto-Medium.ttf",
-            "https://raw.githubusercontent.com/google/fonts/main/ofl/roboto/Roboto-Bold.ttf",
+            "https://raw.githubusercontent.com/googlefonts/roboto/main/src/hinted/Roboto-Medium.ttf",
+            "https://github.com/googlefonts/roboto/raw/main/src/hinted/Roboto-Medium.ttf"
         ]
         for url in english_bold_urls:
             try:
@@ -156,10 +156,9 @@ class handler(BaseHTTPRequestHandler):
         text_color = "#000000"
         # 1. Draw Top-Left Phone Clock (Always English)
         draw.text((W * 0.05, H * 0.019), time_str_short, fill=text_color, font=font_en_clock)
-        # 2. Draw Full Amount (Number only, since (ብር) is baked into the template)
+        # 2. Draw Full Amount (Number only, perfectly centered horizontally)
         num_text = f"-{amount}"
-        # Right-align the amount just to the left of the baked-in (ብር)
-        draw.text((W * 0.54, H * 0.345), num_text, fill=text_color, font=font_en_large, anchor="rm")
+        draw.text((W / 2, H * 0.345), num_text, fill=text_color, font=font_en_large, anchor="mm")
         # 3. Draw Transaction Time & ID (Always English Numbers)
         draw.text((W * 0.90, H * 0.448), time_str_full, fill=text_color, font=font_en_details, anchor="rm")
         draw.text((W * 0.90, H * 0.575), display_txid, fill=text_color, font=font_en_name_txid, anchor="rm")
